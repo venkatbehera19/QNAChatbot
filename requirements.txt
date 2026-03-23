@@ -1,0 +1,13 @@
+requests
+fastapi[standard]
+uvicorn
+langchain_google_genai
+python-multipart
+langchain_community
+pymupdf
+langchain-huggingface
+sentence_transformers
+faiss-cpu
+langchain_text_splitters
+pypdf
+langchain_chroma
