@@ -1,11 +1,6 @@
 """Application constants: env names, file types, model config, route paths."""
 
 from enum import Enum
-class Tax(Enum):
-  """constants tax value"""
-  NEW_REGIME_STANDARD_DEDUCTION = 70000.00
-  OLD_REGIME_STANDARD_DEDUCTION = 50000.00
-
 
 class GEMINI_CHAT_MODEL(Enum):
   """Gemini chat model configuration"""
@@ -22,10 +17,9 @@ class VECTOR_DB(Enum):
   """"""
   CHUNK_SIZE = 1000
   CHUNK_OVERLAP = 100
-  EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-0.6B"
+  EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
   FAISS = 'faiss'
   CHROMA = 'chroma'
   COLLECTION_NAME = "qna_indexes"
-
 

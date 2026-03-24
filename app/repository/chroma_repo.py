@@ -17,7 +17,6 @@ class ChromaRepository:
         
     os.makedirs(self.persist_directory, exist_ok=True)
         
-    # Chroma handles loading/creating automatically
     self.vector_store = Chroma(
         collection_name=self.collection_name,
         embedding_function=self.embeddings,
@@ -28,8 +27,21 @@ class ChromaRepository:
   def add_documents(self, documents):
     logger.info("Adding documents to ChromaDB...")
     self.vector_store.add_documents(documents)
-    # Note: In newer langchain-chroma versions, persist() is called automatically
     logger.info(f"Successfully indexed {len(documents)} documents.")
 
   def search(self, query, k=5):
     return self.vector_store.similarity_search(query, k=k)
+
+  def file_exists(self, filename: str) -> bool:
+    """Queries ChromaDB metadata to see if this filename has been processed."""
+    try:
+      results = self.vector_store._collection.get(
+        where={"filename": filename},
+        limit=1,
+        include=[]  
+      )
+      return len(results.get("ids", [])) > 0
+
+    except Exception as e:
+      logger.info(f"Error checking Chroma for file: {e}")
+      return False

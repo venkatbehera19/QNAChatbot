@@ -47,3 +47,17 @@ class FAISSRepository:
 
   def search(self, query, k=5):
     return self.vector_store.similarity_search(query, k=k)
+
+  def file_exists(self, filename: str) -> bool:
+    """Queries ChromaDB metadata to see if this filename has been processed."""
+    try:
+      results = self.vector_store._collection.get(
+        where={"filename": filename},
+        limit=1,
+        include=[]  
+      )
+      return len(results.get("ids", [])) > 0
+
+    except Exception as e:
+      logger.info(f"Error checking Chroma for file: {e}")
+      return False

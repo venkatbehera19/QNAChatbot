@@ -11,3 +11,5 @@ faiss-cpu
 langchain_text_splitters
 pypdf
 langchain_chroma
+sqlalchemy
+psycopg2-binary

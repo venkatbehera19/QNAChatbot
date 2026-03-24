@@ -8,6 +8,7 @@ from app.services.core.ingestion_service import ingestion_service
 from langchain_core.documents import Document
 
 from app.exceptions.domain import AppError
+import os
 
 
 router = APIRouter(tags=["rag"])
@@ -35,22 +36,33 @@ async def ingest_file(request: Request, file_data: IngestionRequest = Depends(ge
 
   """
   file = file_data.file
+  filename = file.filename
   ingest_result = ingestion_service.save_file(file)
   service_response = ingestion_service.ingest_file(file, ingest_result)
 
   raw_chunks = service_response.get("index_result", [])
   vector_db = request.app.state.vector_repo
 
+  if vector_db.file_exists(filename):
+    return {
+       "message": f"File '{filename}' is already indexed. Skipping ingestion.",
+        "saved_path": None
+    }
+
   try:
     chunks = []
     for item in raw_chunks:
       if isinstance(item, Document):
+        original_source = item.metadata.get("source", filename)
+        item.metadata["filename"] = os.path.basename(original_source)
         chunks.append(item)
 
     vector_db.add_documents(chunks)
     return {
       "message": "File Uploaded and Indexed Successfully",
-      "saved_path":   service_response['saved_path']
+      "saved_path":   service_response['saved_path'],
+      "files": vector_db.file_exists(filename),
+      "filename": chunks
     }
         
   except TypeError as e:

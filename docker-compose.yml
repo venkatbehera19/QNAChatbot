@@ -8,9 +8,13 @@ services:
       - .:/app
       - sqlite_data:/app/data
       - ./vector_db_stores:/app/vector_db_stores
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    
     environment:
       - DATABASE_URL=sqlite:////./app/data/sql_app.db
       - PERSIST_DIR=/app/vector_db_stores/faiss_store
+
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 volumes:

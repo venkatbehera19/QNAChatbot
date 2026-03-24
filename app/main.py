@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from app.utils.embedding_utils import embeddings_client
@@ -8,8 +9,7 @@ from app.exceptions import AppError
 from app.exceptions.handlers import app_error_handler, global_exception_handler
 from app.routes.ingestion_routes import router as ingestion_router
 from app.routes.chat_routes import router as chat_router
-# from app.repository.faiss_repo import FAISSRepository
-import os
+from app.db.database import engine, Base
 
 from app.config.env_config import settings
 from app.repository.factory import VectorStoreFactory
@@ -29,6 +29,8 @@ async def lifespan(app: FastAPI):
     collection_name=VECTOR_DB.COLLECTION_NAME.value
     )
   yield
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Async User API", lifespan=lifespan)
 

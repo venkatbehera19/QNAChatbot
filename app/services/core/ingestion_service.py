@@ -64,7 +64,7 @@ class IngestionService:
     logger.info('Working here index_file')
     processor = TextProcessing(file_path)
     results = processor.process()
-
+    
     return results
 
 ingestion_service = IngestionService()
