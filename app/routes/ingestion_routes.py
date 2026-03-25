@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, status, File, Depends, Request
+from fastapi import APIRouter, UploadFile, status, File, Depends, Request, HTTPException
 
 from app.config.env_config import settings
 from app.config.log_config import logger
@@ -60,13 +60,9 @@ async def ingest_file(request: Request, file_data: IngestionRequest = Depends(ge
     vector_db.add_documents(chunks)
     return {
       "message": "File Uploaded and Indexed Successfully",
-      "saved_path":   service_response['saved_path'],
-      "files": vector_db.file_exists(filename),
-      "filename": chunks
+      "saved_path":   service_response['saved_path']
     }
         
   except TypeError as e:
     logger.error(f"Mapping failed. raw_chunks type: {type(raw_chunks)}. Content: {raw_chunks[:100]}")
     raise AppError(message="Data format mismatch during indexing", status_code=500)
-
-    

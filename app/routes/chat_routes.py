@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, Request
+from fastapi import APIRouter, status, Request, HTTPException
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.chat_history import InMemoryChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
@@ -86,3 +86,30 @@ async def chat(request: Request, query: str, session_id: str):
     raise
   
 
+@router.get("/history/{session_id}")
+async def get_chat_history(session_id: str):
+  """Fetch the complete chat history for a specific session from Redis.
+  
+  Args:
+    session_id: the key that fetches from redis in memory
+  """
+  try:
+    history = redis_history.get_redis_history(session_id)
+    messages = history.messages
+
+    formatted_history = []
+    for msg in messages:
+      formatted_history.append({
+        "role": "user" if msg.type == "human" else "assistant",
+        "content": msg.content
+      })
+
+    return {
+      "session_id": session_id,
+      "history": formatted_history,
+      "count": len(formatted_history)
+    }
+
+  except Exception as e:
+    logger.error(f"Error fetching history for session {session_id}: {e}")
+    raise HTTPException(status_code=500, detail="Could not retrieve chat history.")
