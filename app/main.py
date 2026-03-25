@@ -19,12 +19,11 @@ from app.constants.app_constants import VECTOR_DB
 async def lifespan(app: FastAPI):
   logger.info("asynccontextmanager")
 
-  app.state.embeddings = embeddings_client
   db_type = settings.VECTOR_DB_TYPE
 
   app.state.vector_repo = VectorStoreFactory.get_repository(
     db_type = db_type,
-    embeddings=app.state.embeddings,
+    embeddings=embeddings_client,
     persist_directory=settings.VECTOR_PERSIST_DIR,
     collection_name=VECTOR_DB.COLLECTION_NAME.value
     )

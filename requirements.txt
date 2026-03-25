@@ -13,3 +13,5 @@ pypdf
 langchain_chroma
 sqlalchemy
 psycopg2-binary
+redis==5.0.8
+langchain-groq

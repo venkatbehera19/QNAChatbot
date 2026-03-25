@@ -7,6 +7,11 @@ class GEMINI_CHAT_MODEL(Enum):
   MODEL_NAME = "gemini-3-flash-preview"
   TEMPERATURE = 0.0
 
+class GROQ_CHAT_MODEL(Enum):
+  """Gemini chat model configuration"""
+  MODEL_NAME = "openai/gpt-oss-120b"
+  TEMPERATURE = 0.0
+
 class ALLOWED_FILES(Enum):
   """Supported file extensions for ingestion."""
   PDF = ".pdf"

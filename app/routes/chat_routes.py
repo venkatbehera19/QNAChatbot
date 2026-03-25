@@ -1,16 +1,25 @@
 from fastapi import APIRouter, status, Request
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.chat_history import InMemoryChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
 from app.config.env_config import settings
 from app.config.log_config import logger
-
-# from app.schemas.core.chat import ChatRequest, ChatResponse
-from app.llm.gemini_chat_client import default_chat_client
+from app.prompt.retrival_system_prompt import RAG_SYSTEM_PROMPT_TEXT
+from app.llm.groq_chat_client import default_chat_client
+from app.utils.redis_utils import redis_history
 
 router = APIRouter(tags=["chat"])
 
+store = {}
+def get_session_history(session_id: str):
+  if session_id not in store:
+    store[session_id] = InMemoryChatMessageHistory()
+  return store[session_id]
+
 @router.get('/chat', status_code=status.HTTP_200_OK)
-async def chat(request: Request, query: str):
+async def chat(request: Request, query: str, session_id: str):
   """ Chat Methods for llm response
 
   Args:
@@ -20,6 +29,18 @@ async def chat(request: Request, query: str):
   Response:
     answer: llm answer with similarity search
   """
+
+  prompt = ChatPromptTemplate.from_messages(
+    [
+      (
+        "system", 
+        RAG_SYSTEM_PROMPT_TEXT
+      ),
+      MessagesPlaceholder(variable_name="history"),
+      ("human", "{query}")
+    ]
+  )
+  
   vector_db = request.app.state.vector_repo
   if vector_db.vector_store is None:
     logger.warning("Search attempted on an empty vector store.")
@@ -28,25 +49,40 @@ async def chat(request: Request, query: str):
       "results": [],
       "message": "No documents have been indexed yet."
     }
-  vector_db  = request.app.state.vector_repo
+    
   docs = vector_db.search(query)
   context_text = "\n\n".join([doc.page_content for doc in docs])
-  chain = default_chat_client | StrOutputParser()
-  messages = [
-      (
-         "system",
-          f"""You are a helpful assistant. Use the following pieces of retrieved 
-          context to answer the question. If you don't know the answer based 
-          on the context, say that you don't know.
-            
-          CONTEXT:
-          {context_text}"""
-      ),
-      ("human", query),
-  ]
-  response_text = chain.invoke(messages)
-  return {
-    "answer": response_text,
-    "sources": [doc.metadata for doc in docs]
-  }
+  # chain = default_chat_client | StrOutputParser()
+  basic_chain = prompt | default_chat_client | StrOutputParser()
+
+  if settings.USE_REDIS:
+    with_message_history_runnable = RunnableWithMessageHistory(
+      basic_chain,
+      get_session_history=redis_history.get_redis_history,
+      input_messages_key="query",
+      history_messages_key="history",
+    )
+  else:
+    with_message_history_runnable = RunnableWithMessageHistory(
+      basic_chain,
+      get_session_history,
+      input_messages_key="query",
+      history_messages_key="history",
+    )
+  
+  config = {"configurable": { "session_id": session_id }}
+
+  try:
+    response_text = await with_message_history_runnable.ainvoke(
+      {"query": query, "context": context_text}, 
+      config=config
+    )
+    return {
+      "answer": response_text,
+      "sources": [doc.metadata for doc in docs]
+    }
+  except Exception as e:
+    logger.error(f"Chain error: {e}")
+    raise
+  
 

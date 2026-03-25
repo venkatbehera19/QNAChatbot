@@ -27,5 +27,11 @@ class Settings:
     self.HF_TOKEN: str = os.getenv("HF_TOKEN")
     self.VECTOR_DB_TYPE: str = os.getenv('VECTOR_DB_TYPE')
     self.VECTOR_PERSIST_DIR: str = os.getenv("VECTOR_PERSIST_DIR")
+    self.GROQ_API_KEY: str = os.getenv("GROQ_API_KEY")
+    self.REDIS_HOST: str = os.getenv("REDIS_HOST")
+    self.REDIS_PORT: str = os.getenv("REDIS_PORT")
+    self.REDIS_DB: str = os.getenv("REDIS_DB")
+    self.REDIS_PROTOCOL: str = os.getenv("REDIS_PROTOCOL")
+    self.USE_REDIS: str = os.getenv("USE_REDIS")
 
 settings = Settings()
