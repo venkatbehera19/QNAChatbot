@@ -34,4 +34,11 @@ class Settings:
     self.REDIS_PROTOCOL: str = os.getenv("REDIS_PROTOCOL")
     self.USE_REDIS: str = os.getenv("USE_REDIS")
 
+    self.ADMIN_USERNAME: str = os.getenv("ADMIN_USERNAME")
+    self.ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL")
+    self.ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD")
+    self.QDRANT_HOST: str = os.getenv("QDRANT_HOST")
+    self.QDRANT_PORT: str = os.getenv("QDRANT_PORT")
+    self.QDRANT_PROTOCOL: str = os.getenv("QDRANT_PROTOCOL")
+
 settings = Settings()

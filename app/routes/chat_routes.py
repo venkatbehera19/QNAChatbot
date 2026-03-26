@@ -9,6 +9,8 @@ from app.config.log_config import logger
 from app.prompt.retrival_system_prompt import RAG_SYSTEM_PROMPT_TEXT
 from app.llm.groq_chat_client import default_chat_client
 from app.utils.redis_utils import redis_history
+from app.config.redis_config import redis_config
+# import redis
 
 router = APIRouter(tags=["chat"])
 
@@ -96,6 +98,11 @@ async def get_chat_history(session_id: str):
   try:
     history = redis_history.get_redis_history(session_id)
     messages = history.messages
+
+    # url =  redis_config.get_redis_url()
+    # client = redis.from_url(url, decode_responses=True)
+    # keys = client.keys("rag_chat:*")
+    # logger.info(f"KEYS: {keys}")
 
     formatted_history = []
     for msg in messages:
