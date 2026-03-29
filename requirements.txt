@@ -17,3 +17,4 @@ redis==5.0.8
 langchain-groq
 qdrant_client
 langchain-qdrant
+langchain-experimental

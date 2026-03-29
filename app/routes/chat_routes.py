@@ -9,8 +9,8 @@ from app.config.log_config import logger
 from app.prompt.retrival_system_prompt import RAG_SYSTEM_PROMPT_TEXT
 from app.llm.groq_chat_client import default_chat_client
 from app.utils.redis_utils import redis_history
-from app.config.redis_config import redis_config
-# import redis
+# from app.config.redis_config import redis_config
+from app.repository.factory import vector_database
 
 router = APIRouter(tags=["chat"])
 
@@ -21,7 +21,7 @@ def get_session_history(session_id: str):
   return store[session_id]
 
 @router.get('/chat', status_code=status.HTTP_200_OK)
-async def chat(request: Request, query: str, session_id: str):
+async def chat(query: str, session_id: str):
   """ Chat Methods for llm response
 
   Args:
@@ -43,8 +43,7 @@ async def chat(request: Request, query: str, session_id: str):
     ]
   )
   
-  vector_db = request.app.state.vector_repo
-  if vector_db.vector_store is None:
+  if vector_database.vector_store is None:
     logger.warning("Search attempted on an empty vector store.")
     return {
       "query": query,
@@ -52,9 +51,8 @@ async def chat(request: Request, query: str, session_id: str):
       "message": "No documents have been indexed yet."
     }
     
-  docs = vector_db.search(query)
+  docs = vector_database.search(query)
   context_text = "\n\n".join([doc.page_content for doc in docs])
-  # chain = default_chat_client | StrOutputParser()
   basic_chain = prompt | default_chat_client | StrOutputParser()
 
   if settings.USE_REDIS:
@@ -84,7 +82,17 @@ async def chat(request: Request, query: str, session_id: str):
       "sources": [doc.metadata for doc in docs]
     }
   except Exception as e:
-    logger.error(f"Chain error: {e}")
+    error_msg = str(e)
+    logger.error(f"Chain error: {error_msg}")
+    if "413" in error_msg or "rate_limit_exceeded" in error_msg:
+      raise HTTPException(
+        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        detail={
+            "error_type": "TokenLimitExceeded",
+            "message": "The conversation context is too large for the Groq Free Tier (8,000 TPM limit).",
+            "suggestion": "Try starting a new chat or uploading a smaller document chunk."
+        }
+      )
     raise
   
 

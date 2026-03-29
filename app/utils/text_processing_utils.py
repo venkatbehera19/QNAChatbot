@@ -4,14 +4,24 @@ from typing import List
 from langchain_community.document_loaders import PyPDFLoader
 from app.config.log_config import logger
 from app.constants.app_constants import VECTOR_DB
+from app.config.env_config import settings
+from app.utils.embedding_utils import embeddings_client
 
 from app.constants.app_constants import ALLOWED_FILES
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_experimental.text_splitter import SemanticChunker
 
 class TextProcessing:
   """load and split documents into chunk"""
 
-  def __init__(self, file_path, chunk_size = VECTOR_DB.CHUNK_SIZE.value, chunk_overlap = VECTOR_DB.CHUNK_OVERLAP.value):
+  def __init__(
+      self, 
+      file_path, 
+      chunk_size = VECTOR_DB.CHUNK_SIZE.value, 
+      chunk_overlap = VECTOR_DB.CHUNK_OVERLAP.value,
+      semantic_thresold_type = VECTOR_DB.SEMANTIC_CHUNKING_THRESHOLD_TYPE.value,
+      semantic_thresold_amount = VECTOR_DB.SEMANTIC_CHUNKING_THRESHOLD_AMOUNT.value
+      ):
     """Intialize text processor for a file
     
     Args:
@@ -22,6 +32,8 @@ class TextProcessing:
     self.file_path = file_path
     self.chunk_size = chunk_size
     self.chunk_overlap = chunk_overlap
+    self.semantic_thresold_type = semantic_thresold_type
+    self.semantic_thresold_amount = semantic_thresold_amount
 
   def load_documents(self):
     """Load the document from the files
@@ -50,15 +62,25 @@ class TextProcessing:
 
 
   def split_documents(self, docs) -> List:
-    """Split the doc into chunks.
+    """Split the doc into chunks using either recursive charaacter splitter
+      or Semantic chunking.
     Args:
       docs: List of documents loaded from the file to split.
   
     Returns:
       List of document chunks.
     """
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size = self.chunk_size, chunk_overlap = self.chunk_overlap)
-    logger.info("Inside RecursiveCharacterTextSplitter")
+    if settings.SEMANTIC_CHUNKING:
+      text_splitter = SemanticChunker(
+        embeddings= embeddings_client,
+        breakpoint_threshold_type='percentile',
+        breakpoint_threshold_amount=90
+      )
+      logger.info("Using SemanticChunker")
+    else:
+      text_splitter = RecursiveCharacterTextSplitter(chunk_size = self.chunk_size, chunk_overlap = self.chunk_overlap)
+      logger.info("Using RecursiveCharacterTextSplitter")
+      
     return text_splitter.split_documents(docs)
 
   def process(self) -> List:

@@ -1,15 +1,17 @@
 from fastapi import APIRouter, UploadFile, status, File, Depends, Request, HTTPException
+from langchain_core.documents import Document
 
 from app.config.env_config import settings
 from app.config.log_config import logger
+from app.exceptions.domain import AppError
+from app.constants.app_constants import VECTOR_DB
+from app.repository.factory import vector_database
 
 from app.schemas.core.ingestion import IngestionRequest
 from app.services.core.ingestion_service import ingestion_service
-from langchain_core.documents import Document
 
-from app.exceptions.domain import AppError
 import os
-
+import time
 
 router = APIRouter(tags=["rag"])
 
@@ -25,7 +27,7 @@ def get_ingestion_request(file: UploadFile = File(...)) -> IngestionRequest:
   return IngestionRequest(file=file)
 
 @router.post('/upload', status_code=status.HTTP_201_CREATED)
-async def ingest_file(request: Request, file_data: IngestionRequest = Depends(get_ingestion_request)):
+async def ingest_file(file_data: IngestionRequest = Depends(get_ingestion_request)):
   """ Upload a file and index it 
   
   Args:
@@ -38,15 +40,18 @@ async def ingest_file(request: Request, file_data: IngestionRequest = Depends(ge
   file = file_data.file
   filename = file.filename
   ingest_result = ingestion_service.save_file(file)
+  start_time = time.perf_counter()
   service_response = ingestion_service.ingest_file(file, ingest_result)
+  end_time = time.perf_counter()
 
+  chunking_duration_ms = round((end_time - start_time) * 1000, 2)
   raw_chunks = service_response.get("index_result", [])
-  vector_db = request.app.state.vector_repo
 
-  if vector_db.file_exists(filename):
+  if vector_database.file_exists(filename):
     return {
-       "message": f"File '{filename}' is already indexed. Skipping ingestion.",
-        "saved_path": None
+      "message": f"File '{filename}' uploaded and indexed successfully in {chunking_duration_ms}ms.",
+      "saved_path": None,
+      "chunking_time_ms": 0
     }
 
   try:
@@ -57,10 +62,11 @@ async def ingest_file(request: Request, file_data: IngestionRequest = Depends(ge
         item.metadata["filename"] = os.path.basename(original_source)
         chunks.append(item)
 
-    vector_db.add_documents(chunks)
+    vector_database.add_documents(chunks)
     return {
       "message": "File Uploaded and Indexed Successfully",
-      "saved_path":   service_response['saved_path']
+      "saved_path":   service_response['saved_path'],
+      "chunking_time_ms": chunking_duration_ms
     }
         
   except TypeError as e:

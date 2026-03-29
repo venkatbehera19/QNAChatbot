@@ -1,7 +1,5 @@
 import os
 from fastapi import FastAPI
-from contextlib import asynccontextmanager
-from app.utils.embedding_utils import embeddings_client
 
 from app.config.log_config import logger
 from app.middleware.log_middleware import LoggingMiddleware
@@ -11,27 +9,9 @@ from app.routes.ingestion_routes import router as ingestion_router
 from app.routes.chat_routes import router as chat_router
 from app.db.database import engine, Base
 
-from app.config.env_config import settings
-from app.repository.factory import VectorStoreFactory
-from app.constants.app_constants import VECTOR_DB
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-  logger.info("asynccontextmanager")
-
-  db_type = settings.VECTOR_DB_TYPE
-
-  app.state.vector_repo = VectorStoreFactory.get_repository(
-    db_type = db_type,
-    embeddings=embeddings_client,
-    persist_directory=settings.VECTOR_PERSIST_DIR,
-    collection_name=VECTOR_DB.COLLECTION_NAME.value
-    )
-  yield
-
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Async User API", lifespan=lifespan)
+app = FastAPI(title="Rag API")
 
 app.add_exception_handler(AppError, app_error_handler)
 app.add_exception_handler(Exception, global_exception_handler)

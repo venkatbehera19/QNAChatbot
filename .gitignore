@@ -4,3 +4,6 @@ venv/
 logs/*
 
 .pytest_cache
+example
+
+temp/

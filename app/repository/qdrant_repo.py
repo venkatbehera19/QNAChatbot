@@ -69,6 +69,7 @@ class QdrantRepository:
         with_payload=False,
         with_vectors=False
       )
+      return len(results) > 0
     except Exception as e:
       logger.error(f"Error checking Qdrant for file: {e}")
       return False
