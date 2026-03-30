@@ -41,5 +41,6 @@ class Settings:
     self.QDRANT_PORT: str = os.getenv("QDRANT_PORT")
     self.QDRANT_PROTOCOL: str = os.getenv("QDRANT_PROTOCOL")
     self.SEMANTIC_CHUNKING: str = os.getenv("SEMANTIC_CHUNKING")
+    self.QDRANT_HYBRID_SEARCH: str = os.getenv("QDRANT_HYBRID_SEARCH")
 
 settings = Settings()

@@ -4,8 +4,12 @@ from app.config.env_config import settings
 from langchain_qdrant import QdrantVectorStore
 
 from qdrant_client import QdrantClient, models
-from qdrant_client.http.models import Distance, VectorParams
+from qdrant_client.http.models import Distance, VectorParams, SparseVectorParams
 from app.utils.embedding_utils import embeddings_client
+from app.constants.app_constants import VECTOR_DB
+
+from langchain_core.documents import Document
+import uuid
 
 class QdrantRepository:
   """Qdrant vector database configuration"""
@@ -31,26 +35,80 @@ class QdrantRepository:
     if not self.client.collection_exists(self.collection_name):
       self.client.create_collection(
         collection_name= self.collection_name,
-        vectors_config= VectorParams(
-          size= len(embeddings_client.embed_query("Hello world")),
-          distance= Distance.COSINE
-        )
+        vectors_config={
+          "dense": models.VectorParams(
+            size=self.client.get_embedding_size(VECTOR_DB.EMBEDDING_MODEL.value),
+            distance=models.Distance.COSINE
+          )
+        },
+        sparse_vectors_config= {
+          "sparse": models.SparseVectorParams()
+        }
       )
-      logger.info(f"Created new Qdrant collection: {self.collection_name}")
+      logger.info(f"Hybrid collection '{self.collection_name}' created.")
 
     self.vector_store = QdrantVectorStore(
       client=self.client,
       collection_name=self.collection_name,
       embedding=self.embeddings,
+      vector_name="dense"
     )
 
   def add_documents(self, documents):
-    logger.info(f"Adding {len(documents)} documents to Qdrant...")
-    self.vector_store.add_documents(documents)
-    logger.info("Successfully indexed documents.")
+    """Add the document using the add_documents method"""
+    logger.info(f"Adding {len(documents)} docs with Qdrant Hybrid Search...")
+
+    embad_documents = []
+    metadata = []
+
+    for doc in documents:
+      embad_documents.append({
+        "dense": models.Document(text=doc.page_content, model=VECTOR_DB.EMBEDDING_MODEL.value),
+        "sparse": models.Document(text=doc.page_content, model=VECTOR_DB.SPARSE_MODEL.value),
+      })
+
+      payload = doc.metadata.copy()
+      payload["page_content"] = doc.page_content
+      metadata.append(payload)
+
+    self.client.upload_collection(
+      collection_name=self.collection_name,
+      vectors=embad_documents,
+      payload=metadata,
+      parallel=4, 
+    )
+
+    logger.info(f"Added {len(embad_documents)} docs with Qdrant Hybrid Search...")
+
 
   def search(self, query, k=5):
-    return self.vector_store.similarity_search(query, k=k)
+    """Performs Hybrid Search using Reciprocal Rank Fusion (RRF)"""
+    results = self.client.query_points(
+      collection_name= self.collection_name,
+      query=models.FusionQuery(
+        fusion=models.Fusion.RRF
+      ),
+      prefetch=[
+        models.Prefetch(
+          query=models.Document(text=query, model=VECTOR_DB.EMBEDDING_MODEL.value),
+          using="dense",
+        ),
+        models.Prefetch(
+          query=models.Document(text=query, model=VECTOR_DB.SPARSE_MODEL.value),
+          using="sparse",
+        ),
+      ],
+      query_filter=None, 
+      limit=k
+    ).points
+  
+    return [
+          Document(
+              page_content=res.payload['page_content'], 
+              metadata=res.payload 
+          ) for res in results
+    ]
+
 
   def file_exists(self, filename: str) -> bool:
     """Efficiently queries Qdrant metadata using the Scroll API."""

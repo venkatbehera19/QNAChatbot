@@ -20,6 +20,17 @@ def get_session_history(session_id: str):
     store[session_id] = InMemoryChatMessageHistory()
   return store[session_id]
 
+def extract_page_content(doc):
+  """Safely extracts text from either a LangChain Document or a Dictionary."""
+  if hasattr(doc, 'page_content'):
+      return doc.page_content
+  if isinstance(doc, dict):
+      return doc.get('page_content', "")
+  if hasattr(doc, 'payload') and doc.payload:
+      return doc.payload.get('page_content', "")
+  
+  return ""
+
 @router.get('/chat', status_code=status.HTTP_200_OK)
 async def chat(query: str, session_id: str):
   """ Chat Methods for llm response
@@ -52,6 +63,7 @@ async def chat(query: str, session_id: str):
     }
     
   docs = vector_database.search(query)
+  
   context_text = "\n\n".join([doc.page_content for doc in docs])
   basic_chain = prompt | default_chat_client | StrOutputParser()
 
@@ -79,7 +91,8 @@ async def chat(query: str, session_id: str):
     )
     return {
       "answer": response_text,
-      "sources": [doc.metadata for doc in docs]
+      "sources": [doc.metadata for doc in docs],
+      "session_id": session_id
     }
   except Exception as e:
     error_msg = str(e)

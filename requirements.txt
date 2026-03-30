@@ -18,3 +18,5 @@ langchain-groq
 qdrant_client
 langchain-qdrant
 langchain-experimental
+qdrant-client[fastembed]
+fastembed
